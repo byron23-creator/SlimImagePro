@@ -1,23 +1,14 @@
-# Este es el Dockerfile "normal" sin optimizaciones
-# Lo usamos solo para comparar el tamaño con la version optimizada
-# Como pueden ver, usar node:18 sin alpine hace la imagen mucho mas grande
 
 FROM node:18
 
-# Carpeta donde va a estar la app
 WORKDIR /app
 
-# Copiamos todo el proyecto
 COPY app/package.json ./
 
-# Instalamos las dependencias (todas, incluyendo las de desarrollo)
 RUN npm install
 
-# Copiamos el resto del codigo
 COPY app/server.js ./
 
-# Puerto de la app
 EXPOSE 3000
 
-# Arrancamos la app
 CMD ["node", "server.js"]
