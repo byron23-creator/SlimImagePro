@@ -1,6 +1,18 @@
+# Estos archivos no los queremos dentro de la imagen de Docker
+# Si los incluimos, la imagen seria mas grande y podria tener problemas
+
+# La carpeta node_modules no la copiamos porque npm install la genera solo
 node_modules
-npm-debug.log
+
+# Archivos de git tampoco los necesitamos dentro del contenedor
 .git
 .gitignore
-*.md
-Dockerfile.standard
+
+# Archivos de configuracion del editor, no son parte de la app
+.vscode
+
+# El README es solo documentacion, no hace falta en produccion
+README.md
+
+# Los Dockerfiles tampoco necesitan estar dentro de la imagen
+Dockerfile*

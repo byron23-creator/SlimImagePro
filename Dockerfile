@@ -1,37 +1,37 @@
-# ============================================================
-# STAGE 1 — Builder
-# Uses node:18-alpine to install production dependencies only
-# ============================================================
+# Usamos node:18-alpine porque es mucho mas liviana que node:18 normal
+# Alpine es una distro de Linux super pequeña, perfecta para contenedores
+
+# --- ETAPA 1: builder ---
+# Aqui instalamos todo lo que necesitamos para preparar la app
 FROM node:18-alpine AS builder
 
-# Set working directory
+# Definimos donde va a vivir nuestra app dentro del contenedor
 WORKDIR /app
 
-# Copy dependency manifests first (layer-cache optimization)
+# Primero copiamos solo el package.json
+# Esto es un truco para que Docker use el cache si no cambiaron las dependencias
 COPY app/package.json ./
 
-# Install ONLY production dependencies (no devDependencies, no scripts)
+# Instalamos solo las dependencias de produccion (sin las de desarrollo)
+# --ignore-scripts evita que se ejecuten scripts raros durante la instalacion
 RUN npm install --omit=dev --ignore-scripts && \
     npm cache clean --force
 
-# Copy application source
+# Ahora si copiamos el codigo de la app
 COPY app/server.js ./
 
-# ============================================================
-# STAGE 2 — Runtime
-# Uses the minimal node:18-alpine image (no build tools)
-# Upgrades all OS packages to patch known CVEs (e.g. OpenSSL)
-# Removes npm/yarn (not needed at runtime) to eliminate their
-# bundled dependency vulnerabilities
-# ============================================================
+
+# --- ETAPA 2: runtime ---
+# Esta es la imagen final que vamos a usar en produccion
+# Solo tiene lo minimo necesario para correr la app
 FROM node:18-alpine AS runtime
 
-# Upgrade all Alpine packages to get latest security patches
-# (fixes libcrypto3/libssl3 OpenSSL CVEs)
+# Actualizamos los paquetes del sistema para corregir vulnerabilidades conocidas
+# Esto es importante para que la imagen pase los escaneos de seguridad
 RUN apk update && apk upgrade --no-cache && rm -rf /var/cache/apk/*
 
-# Remove npm and yarn — not needed at runtime, eliminates their
-# bundled CVEs (tar, cross-spawn, glob, minimatch, etc.)
+# Borramos npm y yarn porque no los necesitamos para correr la app
+# Esto tambien elimina algunas vulnerabilidades que vienen con ellos
 RUN npm uninstall -g npm && \
     rm -rf /usr/local/lib/node_modules/npm \
            /usr/local/bin/npm \
@@ -40,25 +40,27 @@ RUN npm uninstall -g npm && \
            /usr/local/bin/yarn \
            /usr/local/bin/yarnpkg
 
-# Security: run as non-root user
+# Creamos un usuario sin privilegios para correr la app
+# No es buena idea correr cosas como root en produccion
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 WORKDIR /app
 
-# Copy only the production artifacts from the builder stage
+# Copiamos solo los archivos que necesitamos desde la etapa anterior (builder)
+# El --chown hace que el usuario appuser sea el dueño de esos archivos
 COPY --from=builder --chown=appuser:appgroup /app/node_modules ./node_modules
 COPY --from=builder --chown=appuser:appgroup /app/server.js ./
 COPY --from=builder --chown=appuser:appgroup /app/package.json ./
 
-# Drop to non-root user
+# Cambiamos al usuario sin privilegios
 USER appuser
 
-# Expose application port
+# Le decimos a Docker que la app usa el puerto 3000
 EXPOSE 3000
 
-# Health check
+# Esto le dice a Docker como verificar que la app esta funcionando bien
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD wget -qO- http://localhost:3000/health || exit 1
 
-# Start the application
+# Comando para arrancar la app
 CMD ["node", "server.js"]

@@ -1,11 +1,10 @@
 {
   "name": "slim-node-app",
   "version": "1.0.0",
-  "description": "A simple Node.js HTTP server optimized for minimal Docker image size",
+  "description": "Servidor simple de Node.js optimizado para correr en Docker con imagen liviana",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "build": "echo 'No build step required'"
+    "start": "node server.js"
   },
   "dependencies": {
     "express": "4.21.2"
